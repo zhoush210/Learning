@@ -2,7 +2,8 @@ import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
 import numpy as np
-from auto_encoder import AutoEncoder
+from ae import AutoEncoder
+from vae import VAE
 from torch.utils.data import DataLoader
 import torchvision
 import torchvision.transforms as transforms
@@ -11,9 +12,16 @@ import torchvision.transforms as transforms
 torch.manual_seed(42)
 np.random.seed(42)
 
-def load_model(model_path='autoencoder.pth', latent_dim=128):
+def load_auto_encoder_model(model_path='autoencoder.pth', latent_dim=128):
     """加载预训练的自编码器模型"""
     model = AutoEncoder(latent_dim=latent_dim)
+    model.load_state_dict(torch.load(model_path))
+    model.eval()
+    return model
+
+def load_vae_model(model_path='vae.pth', latent_dim=128):
+    """加载预训练的VAE模型"""
+    model = VAE(latent_dim=latent_dim)
     model.load_state_dict(torch.load(model_path))
     model.eval()
     return model
@@ -134,7 +142,11 @@ def generate_from_mean_latent(model, latent_dim=128):
     with torch.no_grad():
         for data, _ in train_loader:
             data = data.to(device)
-            latent = model.encoder(data)
+            # 处理VAE和普通自编码器的不同情况
+            if isinstance(model, VAE):
+                latent, _ = model.encoder(data)  # VAE返回(mean, log_var)
+            else:
+                latent = model.encoder(data)  # 普通自编码器只返回潜在向量
             latent_vectors.append(latent)
     
     # 计算均值
@@ -158,7 +170,8 @@ def generate_from_mean_latent(model, latent_dim=128):
 
 if __name__ == "__main__":
     # 加载模型
-    model = load_model()
+    # model = load_auto_encoder_model()
+    model = load_vae_model()
 
     print("生成随机图像...")
     generate_from_random(model, num_samples=5)
